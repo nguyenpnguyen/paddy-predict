@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.eggs/
+dist/
+build/
+sdist/
+*.egg-info
+*.deb
+*.rpm
+tmp*
+
+# Environments
+.env
+venv/
+env/
+ENV/
+*.log
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# OS or Editor-created files
+.DS_Store
+.vscode/
