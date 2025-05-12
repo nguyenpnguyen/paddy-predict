@@ -17,8 +17,8 @@ import io
 # Paths to your saved model files
 # Make sure these paths are correct relative to where you run the FastAPI app
 DISEASE_MODEL_PATH = 'paddy_disease_model.h5'
-VARIETY_MODEL_PATH = 'paddy_variety_model.h5' # Placeholder for variety model
-AGE_MODEL_PATH = 'paddy_age_model.h5'       # Placeholder for age model
+VARIETY_MODEL_PATH = 'paddy_variety_model.h5'
+AGE_MODEL_PATH = 'paddy_age_model.h5'
 
 
 # Define the image size your models expect
@@ -182,10 +182,3 @@ async def predict_age(file: UploadFile = File(...)):
     # return JSONResponse(content={"predicted_age": float(predicted_age_value)}) # Return as float for JSON
 
     pass # Remove this pass when implementing
-
-# --- Root Endpoint for API Docs (Optional) ---
-@app.get("/docs")
-async def get_docs():
-    """Redirects to the API documentation."""
-    return {"message": "Go to /docs for API documentation."}
-
