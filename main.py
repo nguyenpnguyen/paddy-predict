@@ -14,9 +14,9 @@ import os
 # --- Configuration ---
 # Paths to your saved model files
 # Make sure these paths are correct relative to where you run the FastAPI app
-DISEASE_MODEL_PATH = 'paddy_disease_model.h5'
-VARIETY_MODEL_PATH = 'paddy_variety_model.h5'
-AGE_MODEL_PATH = 'paddy_age_model.h5'
+DISEASE_MODEL_PATH = 'paddy_disease_model.keras'
+VARIETY_MODEL_PATH = 'paddy_variety_model.keras'
+AGE_MODEL_PATH = 'paddy_age_model.keras'
 
 
 # Define the image size your models expect
@@ -156,7 +156,7 @@ async def predict_disease(file: UploadFile = File(...)): # Remove request parame
 
     try:
         image_array = await preprocess_image(file, IMAGE_SIZE)
-        predictions = disease_model.predict(image_array)
+        predictions = disease_model.predict(image_array, verbose=1)
         predicted_class_index = np.argmax(predictions, axis=1)[0]
         predicted_class_name = DISEASE_CLASS_NAMES[predicted_class_index]
 
