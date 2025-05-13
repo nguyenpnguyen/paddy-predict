@@ -21,7 +21,7 @@ This project is a web application built with FastAPI and a simple HTML/JavaScrip
 
 ## Prerequisites
 
-- **Python 3.8+**: Ensure you have a compatible version of Python installed.
+- **Python 3.12+**: Ensure you have a compatible version of Python installed.
 - **uv**: The uv package manager. If you don't have it, you can install it by following the instructions on the uv GitHub page. A common installation method is:
 
 ```sh

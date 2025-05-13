@@ -1,17 +1,5 @@
 """
 FastAPI Application for Paddy Image Classification, Variety, and Age Prediction
-
-This script sets up a FastAPI server to serve a front-end webpage using Jinja2
-templates and handles image classification requests for different tasks.
-Prediction endpoints now return JSON responses.
-
-To run this application:
-1. Save your trained TensorFlow models (e.g., model.save('paddy_disease_model.h5')).
-   You will need separate models for disease, variety, and age.
-2. Install necessary libraries: pip install fastapi uvicorn tensorflow python-multipart Pillow jinja2
-3. Create a 'templates' directory in the same location as this file.
-4. Save the index.html code (provided separately) as 'templates/index.html'.
-5. Run the server: uvicorn main:app --reload (if this file is named main.py)
 """
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
