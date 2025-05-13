@@ -22,11 +22,7 @@ This project is a web application built with FastAPI and a simple HTML/JavaScrip
 ## Prerequisites
 
 - **Python 3.12+**: Ensure you have a compatible version of Python installed.
-- **uv**: The uv package manager. If you don't have it, you can install it by following the instructions on the uv GitHub page. A common installation method is:
-
-```sh
-curl -LsSf https://astral.sh/uv/install.sh | sh 
-```
+- **uv**: The uv package manager. If you don't have it, you can install it by following the instructions on the [uv GitHub page](https://github.com/astral-sh/uv).
 
 Make sure uv is in your system's PATH.
 
