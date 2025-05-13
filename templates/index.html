@@ -2,12 +2,180 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Paddy Predictor</title>
-    <script async src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script async src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paddy Image Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Optional: Custom styles for better mobile first appearance */
+      body {
+          font-family: 'Inter', sans-serif;
+      }
+      /* Style for loading state */
+      .loading {
+          color: #4299e1;
+          font-style: italic;
+      }
+      /* Style for error state */
+      .error {
+          color: #e53e3e;
+          font-weight: bold;
+      }
+       #imagePreview:not([src]) {
+          display: none; /* Hide preview if no image is selected */
+      }
+    </style>
   </head>
-  <body>
-    <p>Hi</p>
+  <body class="flex flex-col items-center py-8 px-4 min-h-screen text-gray-800 bg-gray-100">
+    <div class="container p-6 mx-auto w-full max-w-md bg-white rounded-lg shadow-xl md:max-w-lg lg:max-w-xl">
+      <h1 class="mb-6 text-3xl font-bold text-center text-gray-900">Paddy Image Analyzer</h1>
+      <div class="p-6 mb-6 text-center rounded-lg border-2 border-blue-400 border-dashed upload-section">
+        <label for="imageInput" class="inline-block py-3 px-6 font-semibold text-white bg-blue-500 rounded-md transition duration-200 ease-in-out cursor-pointer hover:bg-blue-600">
+          Select Image
+        </label>
+        <input type="file" id="imageInput" name="file" accept="image/*" class="hidden" capture="environment" required> {# Added required attribute #}
+        <p id="fileName" class="mt-3 text-sm text-gray-600"></p>
+        <img id="imagePreview" src="" alt="Image Preview" class="object-contain mx-auto mt-4 max-h-64 rounded-md shadow-md">
+      </div>
+      <div class="flex flex-col justify-center mb-6 space-y-4 md:flex-row md:space-y-0 md:space-x-4 button-section">
+        <button
+                class="py-3 px-6 w-full font-semibold text-white bg-green-600 rounded-md transition duration-200 ease-in-out md:w-auto hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed predict-button"
+                id="diseaseBtn"
+                disabled
+                data-endpoint="/predict/disease/" {# Store endpoint in data attribute #}
+            >
+          Classify Disease
+        </button>
+        <button
+                class="py-3 px-6 w-full font-semibold text-white bg-purple-600 rounded-md transition duration-200 ease-in-out md:w-auto hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed predict-button"
+                id="varietyBtn"
+                disabled
+                data-endpoint="/predict/variety/" {# Store endpoint in data attribute #}
+            >
+          Classify Variety
+        </button>
+        <button
+                class="py-3 px-6 w-full font-semibold text-white bg-orange-600 rounded-md transition duration-200 ease-in-out md:w-auto hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed predict-button"
+                id="ageBtn"
+                disabled
+                data-endpoint="/predict/age/" {# Store endpoint in data attribute #}
+            >
+          Predict Age
+        </button>
+      </div>
+      {# Results will be displayed here by JavaScript #}
+      <div id="results" class="flex justify-center items-center p-6 font-semibold text-center text-gray-700 bg-gray-200 rounded-lg results-section min-h-[4rem]">
+        Select an image and click a button to see results.
+      </div>
+    </div>
+    <script>
+      const imageInput = document.getElementById('imageInput');
+      const imagePreview = document.getElementById('imagePreview');
+      const fileNameDisplay = document.getElementById('fileName');
+      const predictButtons = document.querySelectorAll('.predict-button');
+      const resultsDiv = document.getElementById('results');
+
+      // Function to update UI when an image is selected
+      imageInput.addEventListener('change', function(event) {
+          const file = event.target.files[0];
+          if (file) {
+              fileNameDisplay.textContent = `Selected file: ${file.name}`;
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                  imagePreview.src = e.target.result;
+              }
+              reader.readAsDataURL(file);
+
+              // Enable buttons
+              predictButtons.forEach(button => button.disabled = false);
+              resultsDiv.innerHTML = '<div class="font-semibold text-center text-gray-700">Image selected. Click a button to analyze.</div>'; // Reset results div content
+              resultsDiv.className = 'flex justify-center items-center p-6 font-semibold text-center text-gray-700 bg-gray-200 rounded-lg results-section min-h-[4rem]'; // Reset styling
+
+          } else {
+              fileNameDisplay.textContent = '';
+              imagePreview.src = ''; // Clear preview
+               // Disable buttons
+              predictButtons.forEach(button => button.disabled = true);
+              resultsDiv.innerHTML = '<div class="font-semibold text-center text-gray-700">Select an image and click a button to see results.</div>'; // Reset results div content
+              resultsDiv.className = 'flex justify-center items-center p-6 font-semibold text-center text-gray-700 bg-gray-200 rounded-lg results-section min-h-[4rem]'; // Reset styling
+          }
+      });
+
+      // Function to handle button clicks and send image to backend using Fetch API
+      async function sendImageForPrediction(endpoint) {
+          const file = imageInput.files[0];
+          if (!file) {
+              resultsDiv.innerHTML = '<div class="font-bold text-center text-red-600">Please select an image first.</div>';
+              resultsDiv.className = 'flex justify-center items-center p-6 font-bold text-center text-red-600 bg-gray-200 rounded-lg results-section min-h-[4rem]';
+              return; // Stop the function if no file
+          }
+
+          // Show loading state
+          resultsDiv.innerHTML = '<div class="italic font-semibold text-center text-blue-600">Analyzing image...</div>';
+          resultsDiv.className = 'flex justify-center items-center p-6 italic font-semibold text-center text-blue-600 bg-gray-200 rounded-lg results-section min-h-[4rem] loading';
+
+
+          const formData = new FormData();
+          formData.append('file', file); // 'file' must match the parameter name in your FastAPI endpoint
+
+          try {
+              const response = await fetch(endpoint, {
+                  method: 'POST',
+                  body: formData // Fetch API automatically sets Content-Type to multipart/form-data with FormData
+              });
+
+              // Check if the response was successful (status code 2xx)
+              if (!response.ok) {
+                  const errorData = await response.json();
+                  console.error("API Error Response:", errorData);
+                  // Throw an error to be caught by the catch block
+                  throw new Error(`HTTP error! status: ${response.status}, detail: ${errorData.detail || response.statusText}`);
+              }
+
+              // Parse the JSON response
+              const result = await response.json();
+              console.log("Prediction result:", result); // Log the result
+
+              // Display the result based on the response keys
+              let formattedResult = 'Analysis Result: <br>';
+              if (result.predicted_class) {
+                  formattedResult += `Disease: <span class="font-bold text-green-800">${result.predicted_class}</span>`;
+              } else if (result.predicted_variety) {
+                   formattedResult += `Variety: <span class="font-bold text-green-800">${result.predicted_variety}</span>`;
+              } else if (result.predicted_age !== undefined) { // Check for age explicitly
+                   formattedResult += `Age: <span class="font-bold text-green-800">${result.predicted_age} days</span>`;
+              } else {
+                   formattedResult = 'Received unexpected response format.';
+              }
+
+              // Update results div with formatted result and success styling
+              resultsDiv.innerHTML = formattedResult;
+              resultsDiv.className = 'flex justify-center items-center p-6 font-semibold text-center text-green-800 bg-green-200 rounded-lg results-section min-h-[4rem]';
+
+
+          } catch (error) {
+              console.error("Prediction failed:", error);
+              // Update results div with error message and styling
+              resultsDiv.innerHTML = `Error: ${error.message}`;
+              resultsDiv.className = 'flex justify-center items-center p-6 font-bold text-center text-red-600 bg-red-200 rounded-lg results-section min-h-[4rem] error';
+          } finally {
+              // Remove loading state class
+              resultsDiv.classList.remove('loading');
+          }
+      }
+
+      // Add event listeners to buttons
+      predictButtons.forEach(button => {
+          button.addEventListener('click', () => {
+              const endpoint = button.dataset.endpoint; // Get endpoint from data attribute
+              if (endpoint) {
+                  sendImageForPrediction(endpoint);
+              } else {
+                  console.error("Button missing data-endpoint attribute.");
+                  resultsDiv.innerHTML = '<div class="font-bold text-center text-red-600">Configuration error: Button endpoint not set.</div>';
+                  resultsDiv.className = 'flex justify-center items-center p-6 font-bold text-center text-red-600 bg-gray-200 rounded-lg results-section min-h-[4rem] error';
+              }
+          });
+      });
+    </script>
   </body>
 </html>

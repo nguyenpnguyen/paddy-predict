@@ -1,24 +1,34 @@
 """
 FastAPI Application for Paddy Image Classification, Variety, and Age Prediction
 
+This script sets up a FastAPI server to serve a front-end webpage using Jinja2
+templates and handles image classification requests for different tasks.
+Prediction endpoints now return JSON responses.
+
 To run this application:
-Run the server: uvicorn main:app --reload (if this file is named main.py)
+1. Save your trained TensorFlow models (e.g., model.save('paddy_disease_model.h5')).
+   You will need separate models for disease, variety, and age.
+2. Install necessary libraries: pip install fastapi uvicorn tensorflow python-multipart Pillow jinja2
+3. Create a 'templates' directory in the same location as this file.
+4. Save the index.html code (provided separately) as 'templates/index.html'.
+5. Run the server: uvicorn main:app --reload (if this file is named main.py)
 """
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from tensorflow import keras
+from fastapi.responses import HTMLResponse, JSONResponse # Keep HTMLResponse for the main page, use JSONResponse for predictions
+from fastapi.templating import Jinja2Templates # Keep Jinja2Templates for the main page
 from PIL import Image
 import numpy as np
 import io
+import os
+# from starlette.middleware.cors import CORSMiddleware # CORS might not be needed for same-origin
 
 # --- Configuration ---
 # Paths to your saved model files
 # Make sure these paths are correct relative to where you run the FastAPI app
 DISEASE_MODEL_PATH = 'paddy_disease_model.h5'
-VARIETY_MODEL_PATH = 'paddy_variety_model.h5' # Placeholder for variety model
-AGE_MODEL_PATH = 'paddy_age_model.h5'       # Placeholder for age model
+VARIETY_MODEL_PATH = 'paddy_variety_model.h5'
+AGE_MODEL_PATH = 'paddy_age_model.h5'
 
 
 # Define the image size your models expect
@@ -60,28 +70,40 @@ disease_model = None
 variety_model = None
 age_model = None
 
+# Try loading models - add more robust error handling as needed
 try:
-    disease_model = keras.models.load_model(DISEASE_MODEL_PATH)
-    print(f"Disease model loaded successfully from {DISEASE_MODEL_PATH}")
-except Exception as e:
-    print(f"Error loading disease model from {DISEASE_MODEL_PATH}: {e}")
-    print("Please ensure the disease model file exists and is valid.")
+    # Import tensorflow here to avoid loading issues if not installed
+    import tensorflow as tf
+    from tensorflow import keras
 
-try:
+    if os.path.exists(DISEASE_MODEL_PATH):
+        disease_model = keras.models.load_model(DISEASE_MODEL_PATH)
+        print(f"Disease model loaded successfully from {DISEASE_MODEL_PATH}")
+    else:
+        print(f"Disease model not found at {DISEASE_MODEL_PATH}. Prediction will use placeholder.")
+
     # Load your trained variety classification model here
-    # variety_model = keras.models.load_model(VARIETY_MODEL_PATH)
+    # if os.path.exists(VARIETY_MODEL_PATH):
+    #     variety_model = keras.models.load_model(VARIETY_MODEL_PATH)
+    #     print(f"Variety model loaded successfully from {VARIETY_MODEL_PATH}")
+    # else:
+    #      print(f"Variety model not found at {VARIETY_MODEL_PATH}. Prediction will use placeholder.")
     print(f"Attempted to load variety model from {VARIETY_MODEL_PATH} (Placeholder)")
-except Exception as e:
-    print(f"Error loading variety model from {VARIETY_MODEL_PATH}: {e}")
-    print("Please ensure the variety model file exists and is valid if implementing this task.")
 
-try:
+
     # Load your trained age prediction model here
-    # age_model = keras.models.load_model(AGE_MODEL_PATH)
+    # if os.path.exists(AGE_MODEL_PATH):
+    #     age_model = keras.models.load_model(AGE_MODEL_PATH)
+    #     print(f"Age model loaded successfully from {AGE_MODEL_PATH}")
+    # else:
+    #     print(f"Age model not found at {AGE_MODEL_PATH}. Prediction will use placeholder.")
     print(f"Attempted to load age model from {AGE_MODEL_PATH} (Placeholder)")
+
+
+except ImportError:
+    print("Error: TensorFlow and Keras not installed. Cannot load models.")
 except Exception as e:
-    print(f"Error loading age model from {AGE_MODEL_PATH}: {e}")
-    print("Please ensure the age model file exists and is valid if implementing this task.")
+    print(f"An unexpected error occurred during model loading: {e}")
 
 
 # --- FastAPI App Initialization ---
@@ -90,6 +112,16 @@ app = FastAPI(
     description="API for classifying paddy images (Disease, Variety, Age).",
     version="1.0.0",
 )
+
+# # CORS middleware might not be necessary if serving from the same origin (localhost)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"], # Be more restrictive in production
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 
 # Configure Jinja2 Templates
 templates = Jinja2Templates(directory="templates")
@@ -115,6 +147,7 @@ async def preprocess_image(file: UploadFile, target_size: tuple):
 
     except Exception as e:
         print(f"Error during image preprocessing: {e}")
+        # Re-raise as HTTPException to be caught by FastAPI's error handling
         raise HTTPException(status_code=500, detail=f"An error occurred during image processing: {e}")
 
 
@@ -127,65 +160,78 @@ async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 # Endpoint for Disease Classification
-@app.post("/predict/disease/")
-async def predict_disease(file: UploadFile = File(...)):
-    """Receives an image and returns the predicted disease or 'normal'."""
+@app.post("/predict/disease/", response_class=JSONResponse) # Change response_class back to JSONResponse
+async def predict_disease(file: UploadFile = File(...)): # Remove request parameter
+    """Receives an image and returns the predicted disease or 'normal' as JSON."""
     if disease_model is None:
-        raise HTTPException(status_code=500, detail="Disease model not loaded.")
-
-    image_array = await preprocess_image(file, IMAGE_SIZE)
+         raise HTTPException(status_code=500, detail="Disease model not loaded.")
 
     try:
+        image_array = await preprocess_image(file, IMAGE_SIZE)
         predictions = disease_model.predict(image_array)
         predicted_class_index = np.argmax(predictions, axis=1)[0]
         predicted_class_name = DISEASE_CLASS_NAMES[predicted_class_index]
 
+        # Return the result as JSON
         return JSONResponse(content={"predicted_class": predicted_class_name})
 
+    except HTTPException as e:
+         # Re-raise HTTPException from preprocess_image
+         raise e
     except Exception as e:
         print(f"Error during disease prediction: {e}")
+        # Return a general error message as JSON
         raise HTTPException(status_code=500, detail=f"An error occurred during prediction: {e}")
 
 
 # Endpoint for Variety Classification (Placeholder)
-@app.post("/predict/variety/")
-async def predict_variety(file: UploadFile = File(...)):
-    """Receives an image and returns the predicted paddy variety (Placeholder)."""
+@app.post("/predict/variety/", response_class=JSONResponse) # Change response_class back to JSONResponse
+async def predict_variety(file: UploadFile = File(...)): # Remove request parameter
+    """Receives an image and returns the predicted paddy variety (Placeholder) as JSON."""
     if variety_model is None:
-        # In a real implementation, load the variety model here or at startup
-        # For now, return a placeholder response
-        # raise HTTPException(status_code=500, detail="Variety model not loaded.")
-        return JSONResponse(content={"predicted_variety": "Variety Prediction Placeholder"})
+        # Return a placeholder response as JSON
+        return JSONResponse(content={"predicted_variety": "Variety Prediction Placeholder (Model not loaded)"})
 
-    # --- Add variety prediction logic here ---
-    # image_array = await preprocess_image(file, IMAGE_SIZE)
-    # predictions = variety_model.predict(image_array)
-    # predicted_class_index = np.argmax(predictions, axis=1)[0]
-    # predicted_variety_name = VARIETY_CLASS_NAMES[predicted_class_index]
-    # return JSONResponse(content={"predicted_variety": predicted_variety_name})
-    pass # Remove this pass when implementing
+    try:
+        # --- Add variety prediction logic here ---
+        # image_array = await preprocess_image(file, IMAGE_SIZE)
+        # predictions = variety_model.predict(image_array)
+        # predicted_class_index = np.argmax(predictions, axis=1)[0]
+        # predicted_variety_name = VARIETY_CLASS_NAMES[predicted_class_index]
+        # # Return the result as JSON
+        # return JSONResponse(content={"predicted_variety": predicted_variety_name})
+        pass # Remove this pass when implementing the actual logic
+
+    except HTTPException as e:
+         # Re-raise HTTPException from preprocess_image
+         raise e
+    except Exception as e:
+        print(f"Error during variety prediction: {e}")
+        # Return a general error message as JSON
+        raise HTTPException(status_code=500, detail=f"An error occurred during variety prediction: {e}")
 
 
 # Endpoint for Age Prediction (Placeholder)
-@app.post("/predict/age/")
-async def predict_age(file: UploadFile = File(...)):
-    """Receives an image and returns the predicted paddy age (Placeholder)."""
+@app.post("/predict/age/", response_class=JSONResponse) # Change response_class back to JSONResponse
+async def predict_age(file: UploadFile = File(...)): # Remove request parameter
+    """Receives an image and returns the predicted paddy age (Placeholder) as JSON."""
     if age_model is None:
-        # In a real implementation, load the age model here or at startup
-        # For now, return a placeholder response
-        # raise HTTPException(status_code=500, detail="Age model not loaded.")
-         return JSONResponse(content={"predicted_age": "Age Prediction Placeholder"})
+        # Return a placeholder response as JSON
+         return JSONResponse(content={"predicted_age": "Age Prediction Placeholder (Model not loaded)"})
 
-    # --- Add age prediction logic here ---
-    # image_array = await preprocess_image(file, IMAGE_SIZE)
-    # predicted_age_value = age_model.predict(image_array)[0][0] # Assuming regression model outputs a single value
-    # return JSONResponse(content={"predicted_age": float(predicted_age_value)}) # Return as float for JSON
+    try:
+        # --- Add age prediction logic here ---
+        # image_array = await preprocess_image(file, IMAGE_SIZE)
+        # predicted_age_value = age_model.predict(image_array)[0][0] # Assuming regression model outputs a single value
+        # # Return the result as JSON
+        # return JSONResponse(content={"predicted_age": float(predicted_age_value)}) # Return as float for JSON
 
-    pass # Remove this pass when implementing
+        pass # Remove this pass when implementing the actual logic
 
-# --- Root Endpoint for API Docs (Optional) ---
-@app.get("/docs")
-async def get_docs():
-    """Redirects to the API documentation."""
-    return {"message": "Go to /docs for API documentation."}
-
+    except HTTPException as e:
+         # Re-raise HTTPException from preprocess_image
+         raise e
+    except Exception as e:
+        print(f"Error during age prediction: {e}")
+        # Return a general error message as JSON
+        raise HTTPException(status_code=500, detail=f"An error occurred during age prediction: {e}")
