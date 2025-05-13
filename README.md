@@ -66,7 +66,7 @@ source .venv/bin/activate
 4. **Install dependencies using `uv`:**
 
 ```
-uv pip sync
+uv sync
 ```
 
 5. **Place your trained models:**
