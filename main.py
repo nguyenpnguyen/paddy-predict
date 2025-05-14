@@ -14,9 +14,9 @@ import os
 # --- Configuration ---
 # Paths to your saved model files
 # Make sure these paths are correct relative to where you run the FastAPI app
-DISEASE_MODEL_PATH = 'paddy_disease_model.keras'
-VARIETY_MODEL_PATH = 'paddy_variety_model.keras'
-AGE_MODEL_PATH = 'paddy_age_model.keras'
+DISEASE_MODEL_PATH = './paddy_disease_model.keras'
+VARIETY_MODEL_PATH = './paddy_variety_model.h5'
+AGE_MODEL_PATH = './paddy_age_model.keras'
 
 
 # Define the image size your models expect
@@ -64,6 +64,14 @@ try:
     import tensorflow as tf
     from tensorflow import keras
 
+    # --- Debugging Prints for File Paths ---
+    current_working_dir = os.getcwd()
+    print(f"Current Working Directory: {current_working_dir}")
+    print("Attempting to load models from:")
+    print(f"  Disease Model Path: {os.path.abspath(DISEASE_MODEL_PATH)}")
+    print(f"  Variety Model Path: {os.path.abspath(VARIETY_MODEL_PATH)}")
+    print(f"  Age Model Path: {os.path.abspath(AGE_MODEL_PATH)}")
+
     if os.path.exists(DISEASE_MODEL_PATH):
         disease_model = keras.models.load_model(DISEASE_MODEL_PATH)
         print(f"Disease model loaded successfully from {DISEASE_MODEL_PATH}")
@@ -71,13 +79,12 @@ try:
         print(f"Disease model not found at {DISEASE_MODEL_PATH}. Prediction will use placeholder.")
 
     # Load your trained variety classification model here
-    # if os.path.exists(VARIETY_MODEL_PATH):
-    #     variety_model = keras.models.load_model(VARIETY_MODEL_PATH)
-    #     print(f"Variety model loaded successfully from {VARIETY_MODEL_PATH}")
-    # else:
-    #      print(f"Variety model not found at {VARIETY_MODEL_PATH}. Prediction will use placeholder.")
-    print(f"Attempted to load variety model from {VARIETY_MODEL_PATH} (Placeholder)")
-
+    if os.path.exists(VARIETY_MODEL_PATH):
+        variety_model = keras.models.load_model(VARIETY_MODEL_PATH)
+        print(f"Variety model loaded successfully from {VARIETY_MODEL_PATH}")
+    else:
+         print(f"Variety model not found at {VARIETY_MODEL_PATH}. Prediction will use placeholder.")
+    # print(f"Attempted to load variety model from {VARIETY_MODEL_PATH} (Placeholder)")
 
     # Load your trained age prediction model here
     # if os.path.exists(AGE_MODEL_PATH):
@@ -86,8 +93,6 @@ try:
     # else:
     #     print(f"Age model not found at {AGE_MODEL_PATH}. Prediction will use placeholder.")
     print(f"Attempted to load age model from {AGE_MODEL_PATH} (Placeholder)")
-
-
 except ImportError:
     print("Error: TensorFlow and Keras not installed. Cannot load models.")
 except Exception as e:
@@ -177,18 +182,17 @@ async def predict_disease(file: UploadFile = File(...)): # Remove request parame
 async def predict_variety(file: UploadFile = File(...)): # Remove request parameter
     """Receives an image and returns the predicted paddy variety (Placeholder) as JSON."""
     if variety_model is None:
-        # Return a placeholder response as JSON
-        return JSONResponse(content={"predicted_variety": "Variety Prediction Placeholder (Model not loaded)"})
+        # Return an 500 response
+        return HTTPException(status_code=500, detail="Variety model not loaded.")
 
     try:
         # --- Add variety prediction logic here ---
-        # image_array = await preprocess_image(file, IMAGE_SIZE)
-        # predictions = variety_model.predict(image_array)
-        # predicted_class_index = np.argmax(predictions, axis=1)[0]
-        # predicted_variety_name = VARIETY_CLASS_NAMES[predicted_class_index]
-        # # Return the result as JSON
-        # return JSONResponse(content={"predicted_variety": predicted_variety_name})
-        pass # Remove this pass when implementing the actual logic
+        image_array = await preprocess_image(file, IMAGE_SIZE)
+        predictions = variety_model.predict(image_array)
+        predicted_class_index = np.argmax(predictions, axis=1)[0]
+        predicted_variety_name = VARIETY_CLASS_NAMES[predicted_class_index]
+        # Return the result as JSON
+        return JSONResponse(content={"predicted_variety": predicted_variety_name})
 
     except HTTPException as e:
          # Re-raise HTTPException from preprocess_image
