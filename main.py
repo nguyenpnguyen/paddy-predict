@@ -5,9 +5,9 @@ FastAPI Application for Paddy Image Classification, Variety, and Age Prediction
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse # Keep HTMLResponse for the main page, use JSONResponse for predictions
 from fastapi.templating import Jinja2Templates # Keep Jinja2Templates for the main page
-from PIL import Image
-import numpy as np
-import io
+import numpy as np 
+import tensorflow as tf
+from tensorflow import keras
 import os
 
 # --- Configuration ---
@@ -59,9 +59,6 @@ age_model = None
 
 # Try loading models - add more robust error handling as needed
 try:
-    import tensorflow as tf
-    from tensorflow import keras
-
     # --- Debugging Prints for File Paths ---
     current_working_dir = os.getcwd()
     print(f"Current Working Directory: {current_working_dir}")
@@ -109,21 +106,15 @@ async def preprocess_image(file: UploadFile, target_size: tuple):
         raise HTTPException(status_code=400, detail=f"File type '{file.content_type}' is not supported. Please upload an image file.")
 
     try:
-        image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes))
-
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-
-        image = image.resize(target_size)
-        image_array = np.array(image) / 255.0
-        image_array = np.expand_dims(image_array, axis=0) # Add batch dimension
-
-        return image_array
+         image_bytes = await file.read()
+         image = tf.io.decode_jpeg(image_bytes, channels=3)
+         image = tf.image.resize(image, target_size)
+         image_array = tf.image.convert_image_dtype(image, tf.float32).numpy()
+         image_array = np.expand_dims(image_array, axis=0) # Add batch dimension
+         return image_array
 
     except Exception as e:
         print(f"Error during image preprocessing: {e}")
-        # Re-raise as HTTPException to be caught by FastAPI's error handling
         raise HTTPException(status_code=500, detail=f"An error occurred during image processing: {e}")
 
 
