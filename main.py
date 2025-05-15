@@ -177,10 +177,9 @@ async def predict_age(file: UploadFile = File(...)): # Remove request parameter
     try:
         image_array = await preprocess_image(file, IMAGE_SIZE)
         predicted_age_value = age_model.predict(image_array)[0][0] 
-        return JSONResponse(content={"predicted_age": float(predicted_age_value)}) # Return as float for JSON
+        return JSONResponse(content={"predicted_age": int(predicted_age_value)}) # Return as float for JSON
 
     except HTTPException as e:
-         # Re-raise HTTPException from preprocess_image
          raise e
     except Exception as e:
         print(f"Error during age prediction: {e}")
