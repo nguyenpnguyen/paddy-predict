@@ -136,7 +136,7 @@
               console.log("Prediction result:", result); // Log the result
 
               // Display the result based on the response keys
-              let formattedResult = 'Analysis Result: <br>';
+              let formattedResult = '';
               if (result.predicted_class) {
                   formattedResult += `Disease: <span class="font-bold text-green-800">${result.predicted_class}</span>`;
               } else if (result.predicted_variety) {
