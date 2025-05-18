@@ -5,12 +5,14 @@ FastAPI Application for Paddy Image Classification, Variety, and Age Prediction
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse # Keep HTMLResponse for the main page, use JSONResponse for predictions
 from fastapi.templating import Jinja2Templates # Keep Jinja2Templates for the main page
+
 import numpy as np 
-import tensorflow as tf
 from tensorflow import keras
 import pickle
 
+import io
 import os
+from PIL import Image
 
 # --- Configuration ---
 # Paths to your saved model files
@@ -99,14 +101,14 @@ async def preprocess_image(file: UploadFile, target_size: tuple):
     """Reads, preprocesses, and returns an image as a numpy array."""
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail=f"File type '{file.content_type}' is not supported. Please upload an image file.")
-
+    
     try:
-         image_bytes = await file.read()
-         image = tf.io.decode_jpeg(image_bytes, channels=3)
-         image = tf.image.resize(image, target_size)
-         image_array = tf.image.convert_image_dtype(image, tf.float32).numpy()
-         image_array = np.expand_dims(image_array, axis=0) # Add batch dimension
-         return image_array
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+        image = image.resize(target_size)
+        image_array = np.array(image) / 255.0  # Explicit normalization
+        image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
+        return image_array
 
     except Exception as e:
         print(f"Error during image preprocessing: {e}")
