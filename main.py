@@ -8,14 +8,18 @@ from fastapi.templating import Jinja2Templates # Keep Jinja2Templates for the ma
 import numpy as np 
 import tensorflow as tf
 from tensorflow import keras
+import pickle
+
 import os
 
 # --- Configuration ---
 # Paths to your saved model files
 # Make sure these paths are correct relative to where you run the FastAPI app
-DISEASE_MODEL_PATH = './paddy_disease_model.keras'
-VARIETY_MODEL_PATH = './paddy_variety_model.h5'
-AGE_MODEL_PATH = './paddy_age_model.keras'
+DISEASE_MODEL_PATH = 'saved_models/model_disease.keras'
+DISEASE_ENCODER_PATH = 'saved_models/label_encoder_disease.pkl'
+VARIETY_MODEL_PATH = 'saved_models/model_variety.keras'
+VARIETY_ENCODER_PATH = 'saved_models/label_encoder_variety.pkl'
+AGE_MODEL_PATH = 'saved_models/model_age.keras'
 
 
 # Define the image size your models expect
@@ -58,36 +62,27 @@ variety_model = None
 age_model = None
 
 # Try loading models - add more robust error handling as needed
-try:
-    # --- Debugging Prints for File Paths ---
-    current_working_dir = os.getcwd()
-    print(f"Current Working Directory: {current_working_dir}")
-    print("Attempting to load models from:")
-    print(f"  Disease Model Path: {os.path.abspath(DISEASE_MODEL_PATH)}")
-    print(f"  Variety Model Path: {os.path.abspath(VARIETY_MODEL_PATH)}")
-    print(f"  Age Model Path: {os.path.abspath(AGE_MODEL_PATH)}")
+if os.path.exists(DISEASE_MODEL_PATH):
+    disease_model = keras.models.load_model(DISEASE_MODEL_PATH)
+    with open(DISEASE_ENCODER_PATH, "rb") as f:
+        disease_encoder = pickle.load(f)
+    print(f"Disease model loaded successfully from {DISEASE_MODEL_PATH}")
+else:
+    print(f"Disease model not found at {DISEASE_MODEL_PATH}. Prediction will use placeholder.")
 
-    if os.path.exists(DISEASE_MODEL_PATH):
-        disease_model = keras.models.load_model(DISEASE_MODEL_PATH)
-        print(f"Disease model loaded successfully from {DISEASE_MODEL_PATH}")
-    else:
-        print(f"Disease model not found at {DISEASE_MODEL_PATH}. Prediction will use placeholder.")
+if os.path.exists(VARIETY_MODEL_PATH):
+    variety_model = keras.models.load_model(VARIETY_MODEL_PATH)
+    with open(VARIETY_ENCODER_PATH, "rb") as f:
+        variety_encoder = pickle.load(f)
+    print(f"Variety model loaded successfully from {VARIETY_MODEL_PATH}")
+else:
+     print(f"Variety model not found at {VARIETY_MODEL_PATH}. Prediction will use placeholder.")
 
-    if os.path.exists(VARIETY_MODEL_PATH):
-        variety_model = keras.models.load_model(VARIETY_MODEL_PATH)
-        print(f"Variety model loaded successfully from {VARIETY_MODEL_PATH}")
-    else:
-         print(f"Variety model not found at {VARIETY_MODEL_PATH}. Prediction will use placeholder.")
-
-    if os.path.exists(AGE_MODEL_PATH):
-        age_model = keras.models.load_model(AGE_MODEL_PATH)
-        print(f"Age model loaded successfully from {AGE_MODEL_PATH}")
-    else:
-        print(f"Age model not found at {AGE_MODEL_PATH}. Prediction will use placeholder.")
-except ImportError:
-    print("Error: TensorFlow and Keras not installed. Cannot load models.")
-except Exception as e:
-    print(f"An unexpected error occurred during model loading: {e}")
+if os.path.exists(AGE_MODEL_PATH):
+    age_model = keras.models.load_model(AGE_MODEL_PATH)
+    print(f"Age model loaded successfully from {AGE_MODEL_PATH}")
+else:
+    print(f"Age model not found at {AGE_MODEL_PATH}. Prediction will use placeholder.")
 
 
 # --- FastAPI App Initialization ---
@@ -134,9 +129,9 @@ async def predict_disease(file: UploadFile = File(...)): # Remove request parame
     try:
         image_array = await preprocess_image(file, IMAGE_SIZE)
         predictions = disease_model.predict(image_array, verbose=1)
+        #disease_label = disease_encoder.inverse_transform(np.argmax(predictions, axis=1))
         predicted_class_index = np.argmax(predictions, axis=1)[0]
         predicted_class_name = DISEASE_CLASS_NAMES[predicted_class_index]
-
         return JSONResponse(content={"predicted_class": predicted_class_name})
 
     except HTTPException as e:
@@ -149,13 +144,13 @@ async def predict_disease(file: UploadFile = File(...)): # Remove request parame
 # Endpoint for Variety Classification (Placeholder)
 @app.post("/predict/variety/", response_class=JSONResponse) # Change response_class back to JSONResponse
 async def predict_variety(file: UploadFile = File(...)): # Remove request parameter
-    """Receives an image and returns the predicted paddy variety (Placeholder) as JSON."""
     if variety_model is None:
         return HTTPException(status_code=500, detail="Variety model not loaded.")
 
     try:
         image_array = await preprocess_image(file, IMAGE_SIZE)
         predictions = variety_model.predict(image_array)
+        #variety_label = variety_encoder.inverse_transform(np.argmax(predictions, axis=1))
         predicted_class_index = np.argmax(predictions, axis=1)[0]
         predicted_variety_name = VARIETY_CLASS_NAMES[predicted_class_index]
         return JSONResponse(content={"predicted_variety": predicted_variety_name})
@@ -170,18 +165,16 @@ async def predict_variety(file: UploadFile = File(...)): # Remove request parame
 # Endpoint for Age Prediction (Placeholder)
 @app.post("/predict/age/", response_class=JSONResponse) # Change response_class back to JSONResponse
 async def predict_age(file: UploadFile = File(...)): # Remove request parameter
-    """Receives an image and returns the predicted paddy age (Placeholder) as JSON."""
     if age_model is None:
-         return JSONResponse(content={"predicted_age": "Age Prediction Placeholder (Model not loaded)"})
+        return HTTPException(status_code=500, detail="Age model not loaded.")
 
     try:
         image_array = await preprocess_image(file, IMAGE_SIZE)
         predicted_age_value = age_model.predict(image_array)[0][0] 
-        return JSONResponse(content={"predicted_age": int(predicted_age_value)}) # Return as float for JSON
+        return JSONResponse(content={"predicted_age": int(predicted_age_value)}) # Return as int for JSON
 
     except HTTPException as e:
          raise e
     except Exception as e:
         print(f"Error during age prediction: {e}")
-        # Return a general error message as JSON
         raise HTTPException(status_code=500, detail=f"An error occurred during age prediction: {e}")

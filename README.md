@@ -9,11 +9,12 @@ This project is a web application built with FastAPI and a simple HTML/JavaScrip
 ├── main.py
 ├── templates/
 │   └── index.html
-├── paddy_disease_model.keras
-├── paddy_variety_model.keras
-├── paddy_age_model.keras
+├── model_disease.keras
+├── model_variety.keras
+├── model_age.keras
 ├── pyproject.toml
 ├── uv.lock
+├── requirements.txt
 └── README.md
 ```
 
@@ -35,38 +36,11 @@ git clone https://github.com/nguyenpnguyen/paddy-predict.git
 cd paddy-predict
 ```
 
-**2. Create a virtual environment using uv:**
-
-```sh
-uv venv
-```
-
-This creates a virtual environment named `.venv` in your project directory.
-
-**3. Activate the virtual environment:**
-
-- On macOS and Linux:
+**2. Install dependencies:**
 
 ```
-source .venv/bin/activate
-
+pip install -r requirements.txt
 ```
-
-- On Windows:
-
-```
-.venv\Scripts\activate
-
-```
-
-4. **Install dependencies using `uv`:**
-
-```
-uv sync
-```
-
-5. **Place your trained models:**
-Put your trained model files (e.g., `paddy_disease_model.keras`, `paddy_variety_model.keras`, `paddy_age_model.keras`) in the root of the project directory, alongside `main.py`. Make sure the filenames match the `_MODEL_PATH` variables in `main.py`.
 
 ## Running the Application
 
@@ -75,7 +49,7 @@ Put your trained model files (e.g., `paddy_disease_model.keras`, `paddy_variety_
 2. **Run the FastAPI application using `uvicorn`:**
 
 ```
-uv run uvicorn main:app --reload
+uvicorn main:app --reload
 ```
 
 The --reload flag is useful during development as it restarts the server automatically when you make changes to the code.
