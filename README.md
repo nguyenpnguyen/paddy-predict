@@ -23,9 +23,6 @@ This project is a web application built with FastAPI and a simple HTML/JavaScrip
 ## Prerequisites
 
 - **Python 3.12+**: Ensure you have a compatible version of Python installed.
-- **uv**: The uv package manager. If you don't have it, you can install it by following the instructions on the [uv GitHub page](https://github.com/astral-sh/uv).
-
-Make sure uv is in your system's PATH.
 
 ## Setup
 
@@ -44,7 +41,7 @@ pip install -r requirements.txt
 
 ## Running the Application
 
-1. **Ensure your virtual environment is activated** (see step 4 in Setup).
+1. **Ensure your virtual environment is activated**
 
 2. **Run the FastAPI application using `uvicorn`:**
 
@@ -54,5 +51,4 @@ uvicorn main:app --reload
 
 The --reload flag is useful during development as it restarts the server automatically when you make changes to the code.
 
-3. **Access the front-end:**
-Open your web browser and go to `http://127.0.0.1:8000`.
+3. **Access at** `http://localhost:8000`
